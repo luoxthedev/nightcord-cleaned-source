@@ -137,11 +137,10 @@ try {
 
     Write-ProgressBar 60 "Extraction..."
 
-    # Extraire
-    $extractDir = Join-Path $InstallDir "dist"
-    if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
-    New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
-    Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+    # Extraire directement dans $InstallDir (le zip contient dist/, browser/, etc.)
+    if (Test-Path (Join-Path $InstallDir "dist")) { Remove-Item (Join-Path $InstallDir "dist") -Recurse -Force }
+    if (Test-Path (Join-Path $InstallDir "browser")) { Remove-Item (Join-Path $InstallDir "browser") -Recurse -Force }
+    Expand-Archive -Path $zipPath -DestinationPath $InstallDir -Force
     Remove-Item $zipPath -Force
 
     Set-Content -Path $VersionFile -Value $version
@@ -188,17 +187,13 @@ if (Test-Path $appDir) { Remove-Item $appDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $appDir | Out-Null
 
 # Copier dist/desktop/ vers app/dist/desktop/
-$distSrc = Join-Path $InstallDir "dist\dist\desktop"
-if (-not (Test-Path $distSrc)) {
-    $distSrc = Join-Path $InstallDir "dist\desktop"
-}
+$distSrc = Join-Path $InstallDir "dist\desktop"
 $distDst = Join-Path $appDir "dist"
 New-Item -ItemType Directory -Force -Path $distDst | Out-Null
 Copy-Item -Path $distSrc -Destination (Join-Path $distDst "desktop") -Recurse -Force
 
 # Copier les JSON de plugins si presents
-$pluginSrc = Join-Path $InstallDir "dist"
-$jsonFiles = Get-ChildItem $pluginSrc -Filter "*.json" -ErrorAction SilentlyContinue
+$jsonFiles = Get-ChildItem $InstallDir -Filter "*.json" -ErrorAction SilentlyContinue
 if ($jsonFiles) {
     $appDistRoot = Join-Path $appDir "dist"
     foreach ($f in $jsonFiles) {
