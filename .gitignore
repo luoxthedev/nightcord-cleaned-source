@@ -42,6 +42,7 @@ dist/
 
 # IDE settings
 .vscode/
+.claude/
 
 # backup & temp files
 *.patch.txt
