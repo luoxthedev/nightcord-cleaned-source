@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install *)",
+      "Bash(pnpm build *)",
+      "PowerShell(pnpm install *)",
+      "Bash(pnpm inject *)",
+      "Bash(dir \"E:\\\\Projets VS Code\\\\nightcord\\\\dist\\\\desktop\\\\\" 2>nul *)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git add *)"
+    ]
+  }
+}
