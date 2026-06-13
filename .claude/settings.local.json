@@ -13,7 +13,9 @@
       "Bash(git branch *)",
       "Bash(git push *)",
       "Bash(gh api *)",
-      "Bash(git commit -m 'fix: update GitHub Actions for main branch *)"
+      "Bash(git commit -m 'fix: update GitHub Actions for main branch *)",
+      "Bash(gh run *)",
+      "Bash(git config *)"
     ]
   }
 }
