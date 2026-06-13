@@ -12,7 +12,7 @@ permissions:
 
 jobs:
     Build:
-        name: Build Equicord
+        name: Build Nightcord
         runs-on: ubuntu-latest
 
         steps:
@@ -68,7 +68,7 @@ jobs:
               id: date
               run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
 
-            - name: Upload Equicord Stable
+            - name: Upload Nightcord Stable
               run: |
                   gh release create ${{ steps.date.outputs.date }} --latest=false
                   gh release upload ${{ steps.date.outputs.date }} --clobber dist/release/*

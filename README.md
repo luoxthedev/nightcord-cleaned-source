@@ -50,7 +50,7 @@ npm install -g pnpm
 ### Clone & Build
 
 ```bash
-git clone https://git.nightcord.ru/nightcord/nightcord.git
+git clone https://github.com/luoxthedev/nightcord-cleaned-source
 cd nightcord
 pnpm install
 pnpm build
@@ -74,7 +74,7 @@ pnpm uninject
 
 Source code:
 
-https://git.nightcord.ru/nightcord/nightcord
+https://github.com/luoxthedev/nightcord-cleaned-source
 
 ---
 

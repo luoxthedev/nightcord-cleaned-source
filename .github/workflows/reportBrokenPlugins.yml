@@ -29,7 +29,7 @@ jobs:
         steps:
             - uses: actions/checkout@v4
               with:
-                  ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
+                  ref: ${{ github.event_name == 'schedule' && 'main' || github.ref }}
 
             - uses: pnpm/action-setup@v3 # Install pnpm using packageManager key in package.json
 
@@ -43,7 +43,7 @@ jobs:
               run: |
                   pnpm install --frozen-lockfile --prefer-offline
 
-            - name: Build Equicord Reporter Version
+            - name: Build Nightcord Reporter Version
               run: pnpm buildReporter
 
             - name: Run Reporter

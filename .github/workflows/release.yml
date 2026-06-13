@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Equicord renderer (standalone)
+      - name: Build Nightcord renderer (standalone)
         run: pnpm buildStandalone
 
       - name: Build & Package Electron

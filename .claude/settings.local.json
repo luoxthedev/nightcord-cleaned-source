@@ -8,7 +8,12 @@
       "Bash(dir \"E:\\\\Projets VS Code\\\\nightcord\\\\dist\\\\desktop\\\\\" 2>nul *)",
       "Bash(git init *)",
       "Bash(git remote *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m 'feat: remove Nightcord updater and external API links *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(gh api *)",
+      "Bash(git commit -m 'fix: update GitHub Actions for main branch *)"
     ]
   }
 }

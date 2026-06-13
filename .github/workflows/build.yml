@@ -1,4 +1,4 @@
-name: Release
+name: Release Nightcord
 on:
     push:
         branches:
@@ -6,8 +6,8 @@ on:
 
 env:
     FORCE_COLOR: true
-    GITHUB_TOKEN: ${{ secrets.ETOKEN }}
-    REPO: Equicord/Equibored
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    REPO: luoxthedev/nightcord-cleaned-source
     USERNAME: GitHub-Actions
 
 permissions:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
     Build:
-        name: Build Equicord
+        name: Build Nightcord
         runs-on: ubuntu-latest
 
         steps:
@@ -67,7 +67,7 @@ jobs:
                   rm release/package.json
                   rm release/*.map
 
-            - name: Upload Equicord Stable
+            - name: Upload Nightcord Stable
               run: |
                   gh release upload latest --clobber dist/release/*
 
