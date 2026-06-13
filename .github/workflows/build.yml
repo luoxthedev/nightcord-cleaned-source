@@ -65,6 +65,8 @@ jobs:
                   rm -f release/*.map
 
             - name: Upload Nightcord Stable
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   gh release create nightly --target main --generate-notes 2>/dev/null || true
                   gh release upload nightly --clobber dist/release/*
