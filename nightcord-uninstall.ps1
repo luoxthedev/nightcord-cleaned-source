@@ -73,12 +73,25 @@ function Find-Discord {
     return $null
 }
 
+function Restart-Discord($Channel) {
+    $base = Join-Path $env:LOCALAPPDATA $Channel
+    $exe = Join-Path $base "Update.exe"
+    if (Test-Path $exe) {
+        Start-Process -FilePath $exe -ArgumentList "--processStart", "$Channel.exe" -WindowStyle Hidden
+    } else {
+        $exe = Join-Path $base "$Channel.exe"
+        if (Test-Path $exe) {
+            Start-Process -FilePath $exe -WindowStyle Hidden
+        }
+    }
+}
+
 # ── Demarrage ─────────────────────────────────────────────────────────────────
 Write-Banner
 
-$totalSteps = 4
+$totalSteps = 5
 
-# ── [1/4] Detection de Discord ────────────────────────────────────────────────
+# ── [1/5] Detection de Discord ────────────────────────────────────────────────
 Write-Step 1 $totalSteps "Detection de Discord..."
 Write-ProgressBar 10 "Recherche..."
 
@@ -95,7 +108,7 @@ if (-not $discord) {
 Write-OK "Trouve : $($discord.Channel)"
 Write-ProgressBar 30 "Discord detecte"
 
-# ── [2/4] Fermer Discord ─────────────────────────────────────────────────────
+# ── [2/5] Fermer Discord ─────────────────────────────────────────────────────
 Write-Step 2 $totalSteps "Fermeture de Discord..."
 Write-ProgressBar 35 "Arret..."
 
@@ -109,7 +122,7 @@ if ($procs) {
 }
 Write-ProgressBar 50 "Pret"
 
-# ── [3/4] Suppression de l'injection ─────────────────────────────────────────
+# ── [3/5] Suppression de l'injection ─────────────────────────────────────────
 Write-Step 3 $totalSteps "Suppression de l'injection Nightcord..."
 Write-ProgressBar 55 "Nettoyage..."
 
@@ -166,7 +179,7 @@ if (Test-Path $backupPath) {
     Write-Host "         Pas de backup _app.asar a restaurer" -ForegroundColor DarkGray
 }
 
-# ── [4/4] Nettoyage des fichiers Nightcord ────────────────────────────────────
+# ── [4/5] Nettoyage des fichiers Nightcord ────────────────────────────────────
 Write-Step 4 $totalSteps "Nettoyage des fichiers..."
 Write-ProgressBar 85 "Suppression..."
 
@@ -180,6 +193,15 @@ if (Test-Path $nightcordDir) {
 
 Write-ProgressBar 100 "Desinstallation terminee"
 
+# --- [5/5] Redemarrage ---
+Write-Step 5 $totalSteps "Redemarrage de Discord..."
+Write-ProgressBar 95 "Redemarrage..."
+
+Restart-Discord $discord.Channel
+
+Write-OK "Discord redemarre !"
+Write-ProgressBar 100 "Termine"
+
 # --- Resultat ---
 Write-Host ""
 if ($uninstalled) {
@@ -187,8 +209,7 @@ if ($uninstalled) {
     Write-Host "    |                                              |" -ForegroundColor Green
     Write-Host "    |   NIGHTCORD DESINSTALLE AVEC SUCCES !       |" -ForegroundColor Green
     Write-Host "    |                                              |" -ForegroundColor Green
-    Write-Host "    |   Redemarrez Discord pour revenir a la       |" -ForegroundColor Green
-    Write-Host "    |   version originale.                         |" -ForegroundColor Green
+    Write-Host "    |   Discord a ete redemarre en mode normal.    |" -ForegroundColor Green
     Write-Host "    |                                              |" -ForegroundColor Green
     Write-Host "    ===============================================" -ForegroundColor Green
 } else {
