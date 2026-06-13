@@ -17,9 +17,9 @@ $ProgressPreference    = "SilentlyContinue"
 function Write-Banner {
     Clear-Host
     Write-Host ""
-    Write-Host "    ╔═══════════════════════════════════════════════╗" -ForegroundColor Red
-    Write-Host "    ║         NIGHTCORD — DESINSTALLATION           ║" -ForegroundColor Red
-    Write-Host "    ╚═══════════════════════════════════════════════╝" -ForegroundColor Red
+    Write-Host "    ===============================================" -ForegroundColor Red
+    Write-Host "    |         NIGHTCORD -- DESINSTALLATION         |" -ForegroundColor Red
+    Write-Host "    ===============================================" -ForegroundColor Red
     Write-Host ""
 }
 
@@ -27,7 +27,7 @@ function Write-ProgressBar($Percent, $Label) {
     $width = 36
     $filled = [math]::Floor($width * $Percent / 100)
     $empty  = $width - $filled
-    $bar    = ("█" * $filled) + ("░" * $empty)
+    $bar    = ("#" * $filled) + ("." * $empty)
     $color  = if ($Percent -ge 100) { "Green" } elseif ($Percent -ge 50) { "Cyan" } else { "Yellow" }
 
     Write-Host "    [" -NoNewline
@@ -180,19 +180,17 @@ if (Test-Path $nightcordDir) {
 
 Write-ProgressBar 100 "Desinstallation terminee"
 
-# ── Resultat ──────────────────────────────────────────────────────────────────
+# --- Resultat ---
 Write-Host ""
 if ($uninstalled) {
-    Write-Host "    ╔═══════════════════════════════════════════════════════╗" -ForegroundColor Green
-    Write-Host "    ║                                                       ║" -ForegroundColor Green
-    Write-Host "    ║     " -NoNewline -ForegroundColor Green
-    Write-Host "  NIGHTCORD DESINSTALLE AVEC SUCCES !" -NoNewline -ForegroundColor White
-    Write-Host "    ║" -ForegroundColor Green
-    Write-Host "    ║                                                       ║" -ForegroundColor Green
-    Write-Host "    ║     Redemarrez Discord pour revenir a la version      ║" -ForegroundColor Green
-    Write-Host "    ║     originale.                                        ║" -ForegroundColor Green
-    Write-Host "    ║                                                       ║" -ForegroundColor Green
-    Write-Host "    ╚═══════════════════════════════════════════════════════╝" -ForegroundColor Green
+    Write-Host "    ===============================================" -ForegroundColor Green
+    Write-Host "    |                                              |" -ForegroundColor Green
+    Write-Host "    |   NIGHTCORD DESINSTALLE AVEC SUCCES !       |" -ForegroundColor Green
+    Write-Host "    |                                              |" -ForegroundColor Green
+    Write-Host "    |   Redemarrez Discord pour revenir a la       |" -ForegroundColor Green
+    Write-Host "    |   version originale.                         |" -ForegroundColor Green
+    Write-Host "    |                                              |" -ForegroundColor Green
+    Write-Host "    ===============================================" -ForegroundColor Green
 } else {
     Write-Host "    Aucune installation Nightcord detectee." -ForegroundColor Yellow
 }

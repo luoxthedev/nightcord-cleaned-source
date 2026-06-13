@@ -24,10 +24,10 @@ $VersionFile  = Join-Path $InstallDir "version.txt"
 function Write-Banner {
     Clear-Host
     Write-Host ""
-    Write-Host "    ╔═══════════════════════════════════════════════╗" -ForegroundColor Cyan
-    Write-Host "    ║           NIGHTCORD  INSTALLER               ║" -ForegroundColor Cyan
-    Write-Host "    ║     Injection dans Discord Desktop           ║" -ForegroundColor DarkCyan
-    Write-Host "    ╚═══════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Host "    ===============================================" -ForegroundColor Cyan
+    Write-Host "    |           NIGHTCORD  INSTALLER               |" -ForegroundColor Cyan
+    Write-Host "    |     Injection dans Discord Desktop           |" -ForegroundColor DarkCyan
+    Write-Host "    ===============================================" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -35,7 +35,7 @@ function Write-ProgressBar($Percent, $Label) {
     $width = 36
     $filled = [math]::Floor($width * $Percent / 100)
     $empty  = $width - $filled
-    $bar    = ("█" * $filled) + ("░" * $empty)
+    $bar    = ("#" * $filled) + ("." * $empty)
     $color  = if ($Percent -ge 100) { "Green" } elseif ($Percent -ge 50) { "Cyan" } else { "Yellow" }
 
     Write-Host "    [" -NoNewline
@@ -246,17 +246,15 @@ $oldBackup = Join-Path $resourcesDir "_app.asar"
 Write-OK "Termine"
 Write-ProgressBar 100 "Installation completee"
 
-# ── Succes ────────────────────────────────────────────────────────────────────
+# --- Succes ---
 Write-Host ""
-Write-Host "    ╔═══════════════════════════════════════════════════════╗" -ForegroundColor Green
-    Write-Host "    ║                                                       ║" -ForegroundColor Green
-Write-Host "    ║     " -NoNewline -ForegroundColor Green
-Write-Host "  NIGHTCORD INSTALLE AVEC SUCCES !" -NoNewline -ForegroundColor White
-    Write-Host "    ║" -ForegroundColor Green
-Write-Host "    ║                                                       ║" -ForegroundColor Green
-Write-Host "    ║     Redemarrez Discord pour appliquer Nightcord.      ║" -ForegroundColor Green
-Write-Host "    ║                                                       ║" -ForegroundColor Green
-Write-Host "    ╚═══════════════════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host "    ===============================================" -ForegroundColor Green
+Write-Host "    |                                              |" -ForegroundColor Green
+Write-Host "    |   NIGHTCORD INSTALLE AVEC SUCCES !          |" -ForegroundColor Green
+Write-Host "    |                                              |" -ForegroundColor Green
+Write-Host "    |   Redemarrez Discord pour appliquer.        |" -ForegroundColor Green
+Write-Host "    |                                              |" -ForegroundColor Green
+Write-Host "    ===============================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "    Pour desinstaller : nightcord-uninstall.bat" -ForegroundColor DarkGray
 Write-Host ""
