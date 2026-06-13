@@ -1,25 +1,24 @@
 # ==============================================================================
-#  Nightcord — Installeur autonome (PowerShell)
+#  Nightcord -- Installeur autonome (PowerShell)
 #
 #  Fait TOUT automatiquement :
 #  1. Trouve Discord (Stable / PTB / Canary)
-#  2. Telecharge les fichiers Nightcord depuis GitHub
+#  2. Telecharge nightcord-dist.zip depuis GitHub
 #  3. Backup app.asar -> _app.asar
 #  4. Injecte Nightcord dans Discord
-#  5. Auto-fermeture apres 5 secondes
-#
-#  Usage : Double-clic sur nightcord-install.bat OU clic droit PowerShell
+#  5. Redemarre Discord
+#  6. Auto-fermeture apres 5 secondes
 # ==============================================================================
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference    = "SilentlyContinue"
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# --- Config ---
 $Repo         = "luoxthedev/nightcord-cleaned-source"
 $InstallDir   = Join-Path $env:LOCALAPPDATA "Nightcord"
 $VersionFile  = Join-Path $InstallDir "version.txt"
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# --- Helpers ---
 
 function Write-Banner {
     Clear-Host
@@ -81,12 +80,25 @@ function Find-Discord {
     return $null
 }
 
-# ── Demarrage ─────────────────────────────────────────────────────────────────
+function Restart-Discord($Channel) {
+    $base = Join-Path $env:LOCALAPPDATA $Channel
+    $exe = Join-Path $base "Update.exe"
+    if (Test-Path $exe) {
+        Start-Process -FilePath $exe -ArgumentList "--processStart", "$Channel.exe" -WindowStyle Hidden
+    } else {
+        $exe = Join-Path $base "$Channel.exe"
+        if (Test-Path $exe) {
+            Start-Process -FilePath $exe -WindowStyle Hidden
+        }
+    }
+}
+
+# --- Demarrage ---
 Write-Banner
 
 $totalSteps = 5
 
-# ── [1/5] Detection de Discord ────────────────────────────────────────────────
+# --- [1/5] Detection de Discord ---
 Write-Step 1 $totalSteps "Detection de Discord..."
 Write-ProgressBar 10 "Recherche..."
 
@@ -98,7 +110,7 @@ if (-not $discord) {
 Write-OK "Trouve : $($discord.Channel)"
 Write-ProgressBar 20 "Discord detecte"
 
-# ── [2/5] Telechargement des fichiers Nightcord ──────────────────────────────
+# --- [2/5] Telechargement ---
 Write-Step 2 $totalSteps "Telechargement depuis GitHub..."
 Write-ProgressBar 25 "Connexion..."
 
@@ -109,43 +121,37 @@ try {
     $release = Invoke-RestMethod -Uri $apiUrl -UseBasicParsing `
         -Headers @{ "User-Agent" = "Nightcord-Installer/3.0"; "Accept" = "application/vnd.github.v3+json" }
 
-    $version  = $release.tag_name
-    $assets   = $release.assets
+    $version = $release.tag_name
+    $zipAsset = $release.assets | Where-Object { $_.name -eq "nightcord-dist.zip" } | Select-Object -First 1
+
+    if (-not $zipAsset) {
+        Write-Fail "nightcord-dist.zip introuvable dans la release $version"
+    }
 
     Write-Host "         Version : $version" -ForegroundColor DarkGray
     Write-ProgressBar 35 "Telechargement..."
 
-    # Telecharger chaque asset dans le dossier dist
-    $totalAssets = $assets.Count
-    $i = 0
-    foreach ($asset in $assets) {
-        $i++
-        $pct = 35 + [math]::Floor(30 * $i / $totalAssets)
-        Write-ProgressBar $pct "$($asset.name)"
-        $outPath = Join-Path $InstallDir $asset.name
-        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $outPath -UseBasicParsing `
-            -Headers @{ "User-Agent" = "Nightcord-Installer/3.0" }
-    }
+    $zipPath = Join-Path $InstallDir "nightcord-dist.zip"
+    Invoke-WebRequest -Uri $zipAsset.browser_download_url -OutFile $zipPath -UseBasicParsing `
+        -Headers @{ "User-Agent" = "Nightcord-Installer/3.0" }
 
-    # Si c'est un zip, l'extraire
-    $zipFile = $assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1
-    if ($zipFile) {
-        $zipPath = Join-Path $InstallDir $zipFile.name
-        $extractDir = Join-Path $InstallDir "dist"
-        if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
-        New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
-        Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
-        Remove-Item $zipPath -Force
-    }
+    Write-ProgressBar 60 "Extraction..."
+
+    # Extraire
+    $extractDir = Join-Path $InstallDir "dist"
+    if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
+    Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+    Remove-Item $zipPath -Force
 
     Set-Content -Path $VersionFile -Value $version
     Write-OK "Nightcord $version telecharge"
     Write-ProgressBar 65 "Fichiers prets"
 } catch {
-    Write-Fail "Echec du telechargement.`n         Verifiez votre connexion internet.`n         Detail : $_"
+    Write-Fail "Echec du telechargement.`n         Detail : $_"
 }
 
-# ── [3/5] Backup de Discord ──────────────────────────────────────────────────
+# --- [3/5] Backup ---
 Write-Step 3 $totalSteps "Sauvegarde de Discord..."
 Write-ProgressBar 70 "Backup..."
 
@@ -153,12 +159,12 @@ $resourcesDir = Join-Path $discord.AppDir "resources"
 $appAsarPath  = Join-Path $resourcesDir "app.asar"
 $backupPath   = Join-Path $resourcesDir "_app.asar"
 
-# Tuer Discord s'il tourne
+# Fermer Discord
 $procs = Get-Process -Name $discord.Channel -ErrorAction SilentlyContinue
 if ($procs) {
     Write-Host "         Fermeture de $($discord.Channel)..." -ForegroundColor DarkGray
     $procs | Stop-Process -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 500
+    Start-Sleep -Seconds 1
 }
 
 # Backup app.asar -> _app.asar
@@ -169,58 +175,51 @@ if (Test-Path $appAsarPath) {
 } elseif (Test-Path $backupPath) {
     Write-OK "Backup deja present"
 } else {
-    Write-Host "         Pas d'app.asar a sauvegarder (deja injecte ?)" -ForegroundColor DarkGray
+    Write-Host "         Pas d'app.asar a sauvegarder" -ForegroundColor DarkGray
 }
-Write-ProgressBar 75 "Pret pour injection"
+Write-ProgressBar 75 "Pret"
 
-# ── [4/5] Injection Nightcord ────────────────────────────────────────────────
+# --- [4/5] Injection ---
 Write-Step 4 $totalSteps "Injection de Nightcord..."
 Write-ProgressBar 80 "Copie des fichiers..."
 
-# Creer le dossier app/ pour l'injection
 $appDir = Join-Path $resourcesDir "app"
 if (Test-Path $appDir) { Remove-Item $appDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $appDir | Out-Null
 
-# Trouver patcher.js dans les dist telecharges
-$patcherSrc = Join-Path $InstallDir "dist\desktop\patcher.js"
-if (-not (Test-Path $patcherSrc)) {
-    # Essayer dans le root du install dir
-    $patcherSrc = Join-Path $InstallDir "patcher.js"
+# Copier dist/desktop/ vers app/dist/desktop/
+$distSrc = Join-Path $InstallDir "dist\dist\desktop"
+if (-not (Test-Path $distSrc)) {
+    $distSrc = Join-Path $InstallDir "dist\desktop"
 }
-if (-not (Test-Path $patcherSrc)) {
-    # Chercher recursivement
-    $found = Get-ChildItem $InstallDir -Filter "patcher.js" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($found) { $patcherSrc = $found.FullName }
-}
-
-if (-not (Test-Path $patcherSrc)) {
-    Write-Fail "patcher.js introuvable dans les fichiers telecharges !"
-}
-
-# Copier les fichiers dist dans le dossier app/
-$distSrc = Split-Path $patcherSrc -Parent
 $distDst = Join-Path $appDir "dist"
 New-Item -ItemType Directory -Force -Path $distDst | Out-Null
+Copy-Item -Path $distSrc -Destination (Join-Path $distDst "desktop") -Recurse -Force
 
-# Copier tout le dossier dist
-Copy-Item -Path (Join-Path $distSrc "*") -Destination $distDst -Recurse -Force
+# Copier les JSON de plugins si presents
+$pluginSrc = Join-Path $InstallDir "dist"
+$jsonFiles = Get-ChildItem $pluginSrc -Filter "*.json" -ErrorAction SilentlyContinue
+if ($jsonFiles) {
+    $appDistRoot = Join-Path $appDir "dist"
+    foreach ($f in $jsonFiles) {
+        Copy-Item $f.FullName -Destination $appDistRoot -Force
+    }
+}
 
 Write-ProgressBar 85 "Patch en cours..."
 
 # Generer package.json
-$packageObj = @{ name = "discord"; main = "index.js" }
-$packageObj | ConvertTo-Json -Depth 3 | Set-Content -Path (Join-Path $appDir "package.json")
+@{ name = "discord"; main = "index.js" } | ConvertTo-Json -Depth 3 |
+    Set-Content -Path (Join-Path $appDir "package.json")
 
-# Generer index.js qui charge le patcher
-$patcherRelative = "dist\desktop\patcher.js"
-$indexContent = @"
+# Generer index.js
+@indexContent = @"
 "use strict";
 const path = require("path");
 const { app } = require("electron");
 
 try {
-    require(path.join(__dirname, "$($patcherRelative.Replace('\', '\\'))"));
+    require(path.join(__dirname, "dist", "desktop", "patcher.js"));
 } catch (e) {
     console.error("[Nightcord] Injection failed:", e.message);
     const backup = path.join(__dirname, "..", "_app.asar");
@@ -236,15 +235,14 @@ Set-Content -Path (Join-Path $appDir "index.js") -Value $indexContent
 Write-OK "Nightcord injecte !"
 Write-ProgressBar 95 "Finalisation..."
 
-# ── [5/5] Nettoyage ──────────────────────────────────────────────────────────
-Write-Step 5 $totalSteps "Nettoyage..."
+# --- [5/5] Redemarrage ---
+Write-Step 5 $totalSteps "Redemarrage de Discord..."
+Write-ProgressBar 98 "Redemarrage..."
 
-# Supprimer les anciens _app.asar orphelins (si existant)
-$oldBackup = Join-Path $resourcesDir "_app.asar"
-# Garder le backup pour le desinstalleur
+Restart-Discord $discord.Channel
 
-Write-OK "Termine"
-Write-ProgressBar 100 "Installation completee"
+Write-OK "Discord redemarre !"
+Write-ProgressBar 100 "Installation terminee"
 
 # --- Succes ---
 Write-Host ""
@@ -252,7 +250,7 @@ Write-Host "    ===============================================" -ForegroundColo
 Write-Host "    |                                              |" -ForegroundColor Green
 Write-Host "    |   NIGHTCORD INSTALLE AVEC SUCCES !          |" -ForegroundColor Green
 Write-Host "    |                                              |" -ForegroundColor Green
-Write-Host "    |   Redemarrez Discord pour appliquer.        |" -ForegroundColor Green
+Write-Host "    |   Discord a ete redemarre.                   |" -ForegroundColor Green
 Write-Host "    |                                              |" -ForegroundColor Green
 Write-Host "    ===============================================" -ForegroundColor Green
 Write-Host ""

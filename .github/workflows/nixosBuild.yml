@@ -42,35 +42,41 @@ jobs:
                   pnpm generateVencordPluginJson dist/vencordplugins.json
                   pnpm generateDevsList dist/devs.json
 
-            - name: Collect files to be released
+            - name: Create nightcord-dist.zip
               run: |
                   cd dist
-                  mkdir release
+                  mkdir -p package/dist/desktop
+                  mkdir -p package/browser
 
-                  # copy browser extension files if they exist
-                  if [ -f browser/browser.js ]; then
-                    cp browser/browser.* release/
-                  fi
+                  # Desktop files
+                  cp desktop/patcher.js package/dist/desktop/
+                  cp desktop/patcher.js.LEGAL.txt package/dist/desktop/
+                  cp desktop/renderer.js package/dist/desktop/
+                  cp desktop/renderer.css package/dist/desktop/
+                  cp desktop/renderer.js.LEGAL.txt package/dist/desktop/
+                  cp nightcord/preload.js package/dist/desktop/preload.js
 
-                  # copy the plugin data jsons, the extension zips and the desktop/vesktop asars
-                  cp *.{json,zip,asar} release/ 2>/dev/null || true
+                  # Browser extension
+                  cp browser/browser.js package/browser/
+                  cp browser/browser.css package/browser/
+                  cp browser/browser.js.LEGAL.txt package/browser/
 
-                  # legacy un-asared files
-                  if [ -d desktop ]; then
-                    cp desktop/* release/
-                  fi
+                  # Plugin lists
+                  cp plugins.json package/ 2>/dev/null || true
+                  cp equicordplugins.json package/ 2>/dev/null || true
+                  cp vencordplugins.json package/ 2>/dev/null || true
+                  cp devs.json package/ 2>/dev/null || true
 
-                  find release -size 0 -delete
-                  rm -f release/package.json
-                  rm -f release/*.map
+                  cd package
+                  zip -r ../nightcord-dist.zip .
 
             - name: Get current date
               id: date
               run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-            - name: Upload Nightcord Stable
+            - name: Upload Release
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   gh release create ${{ steps.date.outputs.date }} --latest=false 2>/dev/null || true
-                  gh release upload ${{ steps.date.outputs.date }} --clobber dist/release/*
+                  gh release upload ${{ steps.date.outputs.date }} --clobber nightcord-dist.zip

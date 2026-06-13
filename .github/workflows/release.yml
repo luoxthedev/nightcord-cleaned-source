@@ -42,28 +42,39 @@ jobs:
                   pnpm generateVencordPluginJson dist/vencordplugins.json
                   pnpm generateDevsList dist/devs.json
 
-            - name: Collect release files
+            - name: Create nightcord-dist.zip
               run: |
                   cd dist
-                  mkdir release
+                  mkdir -p package/dist/desktop
+                  mkdir -p package/browser
 
-                  if [ -f browser/browser.js ]; then
-                    cp browser/browser.* release/
-                  fi
+                  # Desktop files
+                  cp desktop/patcher.js package/dist/desktop/
+                  cp desktop/patcher.js.LEGAL.txt package/dist/desktop/
+                  cp desktop/renderer.js package/dist/desktop/
+                  cp desktop/renderer.css package/dist/desktop/
+                  cp desktop/renderer.js.LEGAL.txt package/dist/desktop/
+                  cp nightcord/preload.js package/dist/desktop/preload.js
 
-                  cp *.{json,zip,asar} release/ 2>/dev/null || true
+                  # Browser extension
+                  cp browser/browser.js package/browser/
+                  cp browser/browser.css package/browser/
+                  cp browser/browser.js.LEGAL.txt package/browser/
+                  cp extension-chrome.zip package/browser/ 2>/dev/null || true
+                  cp extension-firefox.zip package/browser/ 2>/dev/null || true
 
-                  if [ -d desktop ]; then
-                    cp desktop/* release/
-                  fi
+                  # Plugin lists
+                  cp plugins.json package/ 2>/dev/null || true
+                  cp equicordplugins.json package/ 2>/dev/null || true
+                  cp vencordplugins.json package/ 2>/dev/null || true
+                  cp devs.json package/ 2>/dev/null || true
 
-                  find release -size 0 -delete
-                  rm -f release/package.json
-                  rm -f release/*.map
+                  cd package
+                  zip -r ../nightcord-dist.zip .
 
             - name: Create GitHub Release
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   TAG="${GITHUB_REF#refs/tags/}"
-                  gh release create "$TAG" --target main --title "Nightcord $TAG" --generate-notes dist/release/*
+                  gh release create "$TAG" --target main --title "Nightcord $TAG" --generate-notes nightcord-dist.zip
