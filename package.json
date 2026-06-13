@@ -43,7 +43,9 @@
         "test": "pnpm buildStandalone && pnpm testTsc && pnpm lint:fix && pnpm lint-styles && pnpm generatePluginJson",
         "testWeb": "pnpm lint:fix && pnpm buildWeb && pnpm testTsc",
         "testTsc": "tsc --noEmit",
-        "depCheck": "node scripts/depCheck.mjs"
+        "depCheck": "node scripts/depCheck.mjs",
+        "release:nightly": "node scripts/release.mjs nightly",
+        "release:stable": "node scripts/release.mjs stable"
     },
     "dependencies": {
         "@ffmpeg/ffmpeg": "^0.12.10",

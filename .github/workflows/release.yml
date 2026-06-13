@@ -1,79 +1,69 @@
-name: Build & Release Nightcord
-
+name: Release Stable
 on:
-  push:
-    tags:
-      - "v*"          # déclenché sur : git tag v1.0.0 && git push --tags
+    push:
+        tags:
+            - "v*"
+
+env:
+    FORCE_COLOR: true
 
 permissions:
-  contents: write    # nécessaire pour créer la GitHub Release
+    contents: write
 
 jobs:
-  build:
-    runs-on: windows-latest
+    Release:
+        name: Build & Release ${{ github.ref_name }}
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+            - uses: pnpm/action-setup@v3
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.30.3
+            - name: Use Node.js 20
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: "pnpm"
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
 
-      - name: Build Nightcord renderer (standalone)
-        run: pnpm buildStandalone
+            - name: Build web
+              run: pnpm buildWebStandalone
 
-      - name: Build & Package Electron
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          node electron-builder.config.cjs || true
-          npx electron-builder --config electron-builder.config.cjs --win --publish always
+            - name: Build standalone
+              run: pnpm buildStandalone
 
-      - name: Package nightcord-dist.zip
-        shell: pwsh
-        run: |
-          # Gather everything the launcher needs: patcher.js, dist/, ghost-server/, modules/, binaries
-          $staging = "nightcord-dist-staging"
-          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+            - name: Generate plugin lists
+              run: |
+                  pnpm generatePluginJson dist/plugins.json
+                  pnpm generateEquicordPluginJson dist/equicordplugins.json
+                  pnpm generateVencordPluginJson dist/vencordplugins.json
+                  pnpm generateDevsList dist/devs.json
 
-          # Core JS dist output (patcher.js, renderer.js, preload.js …)
-          if (Test-Path "dist") {
-            Copy-Item "dist" "$staging\dist" -Recurse
-          }
+            - name: Collect release files
+              run: |
+                  cd dist
+                  mkdir release
 
-          # Ghost-server (voice/stream server)
-          if (Test-Path "ghost-server") {
-            Copy-Item "ghost-server" "$staging\ghost-server" -Recurse
-          }
+                  if [ -f browser/browser.js ]; then
+                    cp browser/browser.* release/
+                  fi
 
-          # Static assets from release/nightcord-dist (ffmpeg.dll, modules, etc.)
-          if (Test-Path "release\nightcord-dist") {
-            Copy-Item "release\nightcord-dist\*" "$staging\" -Recurse -Force
-          }
+                  cp *.{json,zip,asar} release/ 2>/dev/null || true
 
-          # Entry-point files
-          foreach ($f in @("nightcord-index.js", "nightcord-preload.js")) {
-            if (Test-Path $f) { Copy-Item $f "$staging\" }
-          }
+                  if [ -d desktop ]; then
+                    cp desktop/* release/
+                  fi
 
-          Compress-Archive -Path "$staging\*" -DestinationPath "nightcord-dist.zip" -Force
-          Write-Host "nightcord-dist.zip created ($($(Get-Item nightcord-dist.zip).Length / 1MB) MB)"
+                  find release -size 0 -delete
+                  rm -f release/package.json
+                  rm -f release/*.map
 
-      - name: Upload nightcord-dist.zip to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: nightcord-dist.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            - name: Create GitHub Release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  TAG="${GITHUB_REF#refs/tags/}"
+                  gh release create "$TAG" --target main --title "Nightcord $TAG" --generate-notes dist/release/*
