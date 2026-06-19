@@ -100,11 +100,15 @@ jobs:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   TAG="${{ inputs.tag }}"
+                  zip -j nightcord-install.zip release-assets/nightcord-install.bat release-assets/nightcord-install.ps1
+                  zip -j nightcord-uninstall.zip release-assets/nightcord-uninstall.bat release-assets/nightcord-uninstall.ps1
+                  mkdir -p nightcord-extension/chrome nightcord-extension/firefox
+                  cp -r dist/browser/chromium-unpacked/* nightcord-extension/chrome/
+                  cp -r dist/browser/firefox-unpacked/* nightcord-extension/firefox/
+                  zip -r nightcord-extension.zip nightcord-extension
+
                   gh release create "$TAG" --target "$GITHUB_SHA" --title "Nightcord $TAG" --generate-notes 2>/dev/null || true
                   gh release upload "$TAG" --clobber \
-                    release-assets/nightcord-install.bat \
-                    release-assets/nightcord-install.ps1 \
-                    release-assets/nightcord-uninstall.bat \
-                    release-assets/nightcord-uninstall.ps1 \
-                    dist/extension-chrome.zip \
-                    dist/extension-firefox.zip
+                    nightcord-install.zip \
+                    nightcord-uninstall.zip \
+                    nightcord-extension.zip
