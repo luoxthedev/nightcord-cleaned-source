@@ -29,7 +29,7 @@ Nightcord is a fork of [Equicord](https://github.com/Equicord/Equicord), which i
 ### Easy way — One-click installer
 
 1. Go to [Releases](https://github.com/luoxthedev/nightcord-cleaned-source/releases)
-2. Download **`nightcord-install.bat`** and **`nightcord-install.ps1`** into the same folder
+2. Download **`nightcord-install.zip`** and extract it
 3. Double-click **`nightcord-install.bat`**
 4. Wait for the progress bar to finish — Discord will be patched automatically
 5. Restart Discord — done!
@@ -54,7 +54,7 @@ Nettoyage...                 █████████████████
 
 ### Uninstall
 
-Double-click **`nightcord-uninstall.bat`** — it restores the original Discord in one click.
+Download **`nightcord-uninstall.zip`**, extract it, and double-click **`nightcord-uninstall.bat`** — it restores the original Discord in one click.
 
 ---
 
@@ -65,19 +65,19 @@ Nightcord is also available as a browser extension for Chromium-based browsers (
 ### Chrome / Edge / Brave
 
 1. Go to [Releases](https://github.com/luoxthedev/nightcord-cleaned-source/releases)
-2. Download **`extension-chrome.zip`**
+2. Download **`nightcord-extension.zip`** and extract it
 3. Open `chrome://extensions` (or `edge://extensions`)
 4. Enable **Developer mode** (top right toggle)
 5. Click **Load unpacked**
-6. Select the **`extension-chrome.zip`** file — the extension loads automatically
+6. Select the **`chrome`** folder from the extracted files — the extension loads automatically
 
 ### Firefox
 
 1. Go to [Releases](https://github.com/luoxthedev/nightcord-cleaned-source/releases)
-2. Download **`extension-firefox.zip`**
+2. Download **`nightcord-extension.zip`** and extract it
 3. Open `about:debugging#/runtime/this-firefox`
 4. Click **Load Temporary Add-on…**
-5. Select the **`extension-firefox.zip`** file
+5. Select any file inside the **`firefox`** folder from the extracted files
 
 > **Note:** Firefox temporary add-ons are removed when the browser restarts. To keep it permanently, you can use a Firefox Developer Edition or set `xpinstall.signatures.required` to `false` in `about:config`.
 
@@ -114,18 +114,6 @@ pnpm inject
 
 ```bash
 pnpm uninject
-```
-
----
-
-## Releasing
-
-```bash
-# Create or update the "nightly" release through workflow_dispatch
-npm run release:nightly
-
-# Create or update a stable release through workflow_dispatch
-npm run release:stable
 ```
 
 ---
