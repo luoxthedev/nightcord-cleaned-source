@@ -17,7 +17,7 @@ $ProgressPreference    = "SilentlyContinue"
 $Repo         = "luoxthedev/nightcord-cleaned-source"
 $InstallDir   = Join-Path $env:LOCALAPPDATA "Nightcord"
 $VersionFile  = Join-Path $InstallDir "version.txt"
-$PayloadAsset = "nightcord-install.ps1"
+$PayloadAsset = "nightcord-install.zip"
 $EmbeddedPayloadBase64 = @'
 __NIGHTCORD_PAYLOAD_BASE64__
 '@
@@ -160,12 +160,23 @@ try {
             Write-Fail "$PayloadAsset introuvable dans la release $version"
         }
 
-        $latestInstaller = Join-Path $InstallDir "nightcord-install.latest.ps1"
-        Invoke-WebRequest -Uri $installerAsset.browser_download_url -OutFile $latestInstaller -UseBasicParsing `
+        $zipPath = Join-Path $env:TEMP "nightcord-install-latest.zip"
+        $extractDir = Join-Path $env:TEMP "nightcord-install-latest"
+        Invoke-WebRequest -Uri $installerAsset.browser_download_url -OutFile $zipPath -UseBasicParsing `
             -Headers @{ "User-Agent" = "Nightcord-Installer/3.0" }
 
+        if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
+        Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+        Remove-Item $zipPath -Force
+
+        $latestInstaller = Join-Path $extractDir "nightcord-install.ps1"
+        if (-not (Test-Path $latestInstaller)) {
+            Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Fail "nightcord-install.ps1 introuvable dans $PayloadAsset"
+        }
+
         $payload = Get-EmbeddedPayloadFromScript $latestInstaller
-        Remove-Item $latestInstaller -Force
+        Remove-Item $extractDir -Recurse -Force
 
         if (-not (Test-EmbeddedPayload $payload)) {
             Write-Fail "Payload Nightcord introuvable dans $PayloadAsset"
