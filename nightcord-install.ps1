@@ -192,6 +192,16 @@ $distDst = Join-Path $appDir "dist"
 New-Item -ItemType Directory -Force -Path $distDst | Out-Null
 Copy-Item -Path $distSrc -Destination (Join-Path $distDst "desktop") -Recurse -Force
 
+# Copier nightcord-index.js et nightcord-preload.js
+$indexSrc = Join-Path $InstallDir "nightcord-index.js"
+if (Test-Path $indexSrc) {
+    Copy-Item $indexSrc -Destination (Join-Path $appDir "nightcord-index.js") -Force
+}
+$preloadSrc = Join-Path $InstallDir "nightcord-preload.js"
+if (Test-Path $preloadSrc) {
+    Copy-Item $preloadSrc -Destination (Join-Path $appDir "nightcord-preload.js") -Force
+}
+
 # Copier les JSON de plugins si presents
 $jsonFiles = Get-ChildItem $InstallDir -Filter "*.json" -ErrorAction SilentlyContinue
 if ($jsonFiles) {
@@ -208,19 +218,22 @@ Write-ProgressBar 85 "Patch en cours..."
     Set-Content -Path (Join-Path $appDir "package.json")
 
 # Generer index.js
-@indexContent = @"
+$indexContent = @"
 "use strict";
 const path = require("path");
-const { app } = require("electron");
+const fs = require("fs");
 
-try {
-    require(path.join(__dirname, "dist", "desktop", "patcher.js"));
-} catch (e) {
-    console.error("[Nightcord] Injection failed:", e.message);
-    const backup = path.join(__dirname, "..", "_app.asar");
-    const fs = require("fs");
-    if (fs.existsSync(backup)) {
-        require(backup);
+// Nightcord injection — load patcher.js which patches and loads _app.asar
+const patcherPath = path.join(__dirname, "dist", "desktop", "patcher.js");
+if (fs.existsSync(patcherPath)) {
+    require(patcherPath);
+} else {
+    console.error("[Nightcord] patcher.js not found, falling back to _app.asar");
+    const originalApp = path.join(__dirname, "..", "_app.asar");
+    if (fs.existsSync(originalApp)) {
+        require(originalApp);
+    } else {
+        console.error("[Nightcord] No Discord asar found!");
     }
 }
 "@

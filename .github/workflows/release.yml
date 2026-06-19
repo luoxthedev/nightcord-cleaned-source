@@ -55,6 +55,10 @@ jobs:
                   cp dist/desktop/renderer.js.LEGAL.txt package/dist/desktop/
                   cp dist/nightcord/preload.js package/dist/desktop/preload.js
 
+                  # Nightcord entry files (used by injection)
+                  cp nightcord-index.js package/
+                  cp nightcord-preload.js package/
+
                   # Browser extension
                   cp dist/browser/browser.js package/browser/
                   cp dist/browser/browser.css package/browser/

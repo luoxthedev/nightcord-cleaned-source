@@ -63,3 +63,8 @@ certs/
 # System files
 Thumbs.db
 Desktop.ini
+CLAUDE.md
+
+# Build temp files
+build_err.txt
+build_output.txt
