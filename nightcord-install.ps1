@@ -17,7 +17,7 @@ $ProgressPreference    = "SilentlyContinue"
 $Repo         = "luoxthedev/nightcord-cleaned-source"
 $InstallDir   = Join-Path $env:LOCALAPPDATA "Nightcord"
 $VersionFile  = Join-Path $InstallDir "version.txt"
-$PayloadAsset = "nightcord-install.zip"
+$PayloadAsset = "nightcord-payload.zip"
 $EmbeddedPayloadBase64 = @'
 __NIGHTCORD_PAYLOAD_BASE64__
 '@

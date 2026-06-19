@@ -121,6 +121,7 @@ jobs:
 
                   gh release create "${args[@]}" 2>/dev/null || true
                   gh release upload "$TAG" --clobber \
+                    nightcord-payload.zip \
                     nightcord-install.zip \
                     nightcord-uninstall.zip \
                     nightcord-extension.zip
