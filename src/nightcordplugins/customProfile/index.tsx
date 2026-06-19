@@ -637,11 +637,27 @@ function scanTextNode(node: Text) {
     if (replaced && result !== node.nodeValue) { if ((node as any).__cp_orig === undefined) (node as any).__cp_orig = val; node.nodeValue = result; }
 }
 
+function isInScanZone(el: Element): boolean {
+    // Only scan within: account panel, profile popouts/modals, user settings, member lists
+    return !!(
+        el.closest("[class*='accountPanel']") ||
+        el.closest("[class*='accountProfilePopout']") ||
+        el.closest("[class*='userProfileModal']") ||
+        el.closest("[class*='userSettings']") ||
+        el.closest("[class*='Settings']") ||
+        el.closest("[class*='cp-']") ||
+        el.closest("[class*='Member']") ||
+        el.closest("[class*='member']") ||
+        el.closest("[class*='nameTag']")
+    );
+}
+
 function scanNode(node: Node) {
     if (node.nodeType === Node.TEXT_NODE) { scanTextNode(node as Text); return; }
     if (node instanceof Element) {
         const tag = node.tagName;
         if (tag === "SCRIPT" || tag === "STYLE" || tag === "SVG" || tag === "CANVAS" || tag === "VIDEO" || tag === "IFRAME") return;
+        if (!isInScanZone(node)) return;
     }
     const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
     let n: Node | null;
@@ -1266,7 +1282,7 @@ function CPDMNotice({ userId }: { userId: string; }) {
 export default definePlugin({
     name: "CustomProfile",
     enabledByDefault: true,
-    description: t("Visually customize your Discord profile (username, PFP, banner, badges, bio...) — persistent, only visible to you."),
+    description: "Visually customize your Discord profile (username, PFP, banner, badges, bio...) — persistent, only visible to you.",
     authors: [{ name: "Nightcord", id: 0n }],
     dependencies: ["HeaderBarAPI", "ContextMenuAPI"],
 
@@ -1375,136 +1391,15 @@ export default definePlugin({
     },
 
     fakeCurrentUser(user: any) {
-        if (!user || (!isEnabled && this._forceNative !== true) || !isMe(user.id)) return user;
-
-        // Fast cache: if same user + same data, return existing clone
-        if (cachedOriginalUser === user && cachedFakeUser && cachedDataHash === _dataVersion) {
-            return cachedFakeUser;
-        }
-
-        // Retrieve real original user (never a clone)
-        const realUser = (user as any).__cp_isClone ? _trueOriginalUser || user : user;
-        if (!realUser.__cp_isClone) _trueOriginalUser = realUser;
-
-        // Read real values once
-        const realUsername = realUser.__cp_isClone ? (realUser._realUsername || realUser.username) : realUser.username;
-        const realGlobalName = realUser.__cp_isClone ? (realUser._realGlobalName ?? realUser.globalName) : realUser.globalName;
-        const realDisplayName = realUser.__cp_isClone ? (realUser._realDisplayName ?? realUser.displayName) : realUser.displayName;
-
-        const clone = Object.create(Object.getPrototypeOf(realUser));
-
-        // Copy properties except username/globalName/displayName
-        for (const key of Reflect.ownKeys(realUser)) {
-            if (key === "username" || key === "globalName" || key === "displayName" || key === "__cp_isClone") continue;
-            const desc = Object.getOwnPropertyDescriptor(realUser, key);
-            if (desc) Object.defineProperty(clone, key, desc);
-        }
-        Object.defineProperty(clone, "__cp_isClone", { value: true, enumerable: false, configurable: true });
-        // Store real values on clone for next cycles
-        clone._realUsername = realUsername;
-        clone._realGlobalName = realGlobalName;
-        clone._realDisplayName = realDisplayName;
-
-        if (!isEnabled) {
-            clone.username = realUsername;
-            clone.globalName = realGlobalName;
-            clone.displayName = realDisplayName;
-            cachedOriginalUser = user;
-            cachedFakeUser = clone;
-            cachedDataHash = _dataVersion;
-            return clone;
-        }
-
-        const fakeUser = storedData.username || realUsername;
-        const hasCustomGlobalName = !!storedData.globalName;
-        const fakeGlobal = hasCustomGlobalName ? storedData.globalName : realGlobalName;
-        const origDisplay = realGlobalName || realDisplayName || realUsername;
-        const fakeDisplay = hasCustomGlobalName ? (storedData.globalName || origDisplay) : origDisplay;
-
-        Object.defineProperty(clone, "username", {
-            get: () => isEnabled ? fakeUser : realUsername,
-            set: () => { }, configurable: true, enumerable: true
-        });
-        Object.defineProperty(clone, "globalName", {
-            get: () => isEnabled ? fakeGlobal : realGlobalName,
-            set: () => { }, configurable: true, enumerable: true
-        });
-        Object.defineProperty(clone, "displayName", {
-            get: () => isEnabled ? fakeDisplay : (realDisplayName || realGlobalName || realUsername),
-            set: () => { }, configurable: true, enumerable: true
-        });
-
-        if (storedData.email) clone.email = storedData.email;
-        if (storedData.phone) clone.phone = storedData.phone;
-
-        clone.getTag = () => (storedData.username || realUsername) + "#0000";
-        clone.getGlobalName = () => isEnabled ? fakeGlobal : realGlobalName;
-        clone.toString = () => fakeDisplay;
-
-        // Override createdAt: Discord calculates it from the Snowflake ID via a prototype getter
-        // We redefine it directly on the clone so Discord displays the fake date
-        // without needing to scan the DOM.
-        if (storedData.createdAt) {
-            const fakeCreatedAt = new Date(storedData.createdAt + "T12:00:00Z");
-            Object.defineProperty(clone, "createdAt", {
-                get: () => fakeCreatedAt,
-                configurable: true,
-                enumerable: true
-            });
-        }
-
-        if (storedData.decorationAsset) {
-            const decoData = {
-                asset: storedData.decorationAsset,
-                skuId: storedData.decorationAsset
-            };
-            clone.avatarDecoration = null;
-            clone.avatarDecorationData = decoData;
-        }
-
-        // Override flags/nitro/boost so Discord doesn't show real native badges
-        const wantedFlags = (isEnabled && storedData.badgeFlags != null) ? storedData.badgeFlags : realUser.publicFlags;
-        clone.publicFlags = wantedFlags;
-        clone.flags = wantedFlags;
-
-        if (isEnabled && storedData.nitro) {
-            clone.premiumType = 2;
-            const LEVEL_MONTHS = [1, 2, 3, 6, 12, 24, 36, 72];
-            const since = new Date();
-            since.setMonth(since.getMonth() - (LEVEL_MONTHS[storedData.nitroLevel!] ?? 1));
-            clone.premiumSince = since;
-
-            const bm = storedData.boostMonths ?? -1;
-            if (bm >= 0) {
-                const BOOST_M = [1, 2, 3, 6, 9, 12, 15, 18, 24];
-                const boostSince = new Date();
-                boostSince.setMonth(boostSince.getMonth() - (BOOST_M[bm] ?? 1));
-                clone.premiumGuildSince = boostSince;
-            } else {
-                clone.premiumGuildSince = null;
-            }
-        } else if (isEnabled) {
-            // Si le plugin est activé mais Nitro simulation OFF
-            // On force la suppression des badges Nitro/Boost si demandés ou si simulés par erreur
-            if (storedData.nitro === false) {
-                clone.premiumType = 0;
-                clone.premiumSince = null;
-                clone.premiumGuildSince = null;
-            }
-        }
-
-        // Save real values for next cloning cycle
-        if (!realUser.__cp_isClone) {
-            clone._realPremiumType = realUser.premiumType;
-            clone._realPremiumSince = realUser.premiumSince;
-            clone._realPremiumGuildSince = realUser.premiumGuildSince;
-        }
-
-        cachedOriginalUser = user;
-        cachedFakeUser = clone;
-        cachedDataHash = _dataVersion;
-
-        return clone;
+        // Return the original user unchanged — never clone.
+        // Discord compares users by reference; a clone breaks equality checks
+        // and triggers permission recalcs that reorder/hide guilds.
+        // Visual overrides (username, avatar, badges) are handled by:
+        //   - hookUserProfile (profile popout/modal)
+        //   - DomObserver (account panel text nodes)
+        //   - applyAvatarPatchEarly (avatar URL)
+        if (user && isMe(user.id)) _trueOriginalUser = user;
+        return user;
     },
 
     fakeOtherUser(realUser: any, data: CustomProfileData) {
@@ -1592,40 +1487,12 @@ export default definePlugin({
                 merged.avatarDecorationData = decoData;
             }
 
-            if (data.nitro || data.badgeFlags != null) {
-                merged.premiumType = data.nitro ? 2 : 0;
-
-                if (data.nitro) {
-                    if (data.accentColor != null) {
-                        const c2 = data.accentColor2 ?? data.accentColor;
-                        merged.themeColors = [data.accentColor, c2];
-                    }
-                    const nl = data.nitroLevel ?? 0;
-                    const LEVEL_MONTHS = [1, 2, 3, 6, 12, 24, 36, 72];
-                    const since = new Date();
-                    since.setMonth(since.getMonth() - (LEVEL_MONTHS[nl] ?? 1));
-                    merged.premiumSince = since;
-
-                    const bm = data.boostMonths ?? -1;
-                    if (bm >= 0) {
-                        const BOOST_M = [1, 2, 3, 6, 9, 12, 15, 18, 24];
-                        const boostSince = new Date();
-                        boostSince.setMonth(boostSince.getMonth() - (BOOST_M[bm] ?? 1));
-                        merged.premiumGuildSince = boostSince;
-                    } else {
-                        merged.premiumGuildSince = null;
-                    }
-                } else {
-                    merged.premiumSince = null;
-                    merged.premiumGuildSince = null;
-                }
-
-                merged.publicFlags = (data.badgeFlags != null) ? data.badgeFlags : profile.publicFlags;
-                merged.badges = [];
-            } else if (data.nitro === false) {
-                merged.premiumType = profile.premiumType ?? 0;
-                merged.premiumSince = null;
-                merged.premiumGuildSince = null;
+            // NOTE: premiumType/premiumSince/premiumGuildSince/publicFlags are
+            // intentionally NOT modified. Discord uses them for permissions and
+            // guild ordering. Only visual fields are overridden.
+            if (data.nitro && data.accentColor != null) {
+                const c2 = data.accentColor2 ?? data.accentColor;
+                merged.themeColors = [data.accentColor, c2];
             }
 
             const badgesArr = Array.isArray(profile.badges) ? [...profile.badges] : [];
@@ -1671,49 +1538,11 @@ export default definePlugin({
                 merged.avatarDecorationData = decoData;
             }
 
-            if (isEnabled && (storedData.nitro || storedData.badgeFlags != null)) {
-                merged.premiumType = storedData.nitro ? 2 : 0;
-
-                if (storedData.nitro) {
-                    if (storedData.accentColor != null) {
-                        const c2 = storedData.accentColor2 ?? storedData.accentColor;
-                        merged.themeColors = [storedData.accentColor, c2];
-                    }
-                    const nl = storedData.nitroLevel ?? 0;
-                    const LEVEL_MONTHS = [1, 2, 3, 6, 12, 24, 36, 72];
-                    const since = new Date();
-                    since.setMonth(since.getMonth() - (LEVEL_MONTHS[nl] ?? 1));
-                    merged.premiumSince = since;
-
-                    const bm = storedData.boostMonths ?? -1;
-                    if (bm >= 0) {
-                        const BOOST_M = [1, 2, 3, 6, 9, 12, 15, 18, 24];
-                        const boostSince = new Date();
-                        boostSince.setMonth(boostSince.getMonth() - (BOOST_M[bm] ?? 1));
-                        merged.premiumGuildSince = boostSince;
-                    } else {
-                        merged.premiumGuildSince = null;
-                    }
-                } else {
-                    merged.premiumSince = null;
-                    merged.premiumGuildSince = null;
-                }
-
-                // On s'assure que les badges originaux sont écrasés dans le profil
-                merged.publicFlags = (storedData.badgeFlags != null) ? storedData.badgeFlags : profile.publicFlags;
-                merged.badges = []; // Force Discord à recalculer la liste à partir de publicFlags et premiumType
-            } else if (isEnabled && storedData.nitro === false) {
-                // Si Nitro simulation est OFF, on force la suppression des badges simulés
-                merged.premiumType = profile.premiumType ?? 0;
-                merged.premiumSince = profile.premiumSince ?? null;
-                merged.premiumGuildSince = profile.premiumGuildSince ?? null;
-            } else {
-                // BACKPORT FIX : Never force to 0 or null if Nitro is not simulated.
-                if (profile.premiumType) merged.premiumType = profile.premiumType;
-                if (profile.premiumSince) merged.premiumSince = profile.premiumSince;
-                if (profile.premiumGuildSince) merged.premiumGuildSince = profile.premiumGuildSince;
-            }
-
+            // NOTE: premiumType/premiumSince/premiumGuildSince/publicFlags are
+            // intentionally NOT modified here. Discord uses these to compute
+            // permissions and guild ordering. Modifying them causes random guild
+            // reordering and hidden channels. Only visual fields (bio, pronouns,
+            // colors, banner, badges for display) are overridden.
             const result = virtualMerge(profile, merged);
             this._cachedProfileInput = profile;
             this._cachedProfile = result;
@@ -1927,30 +1756,11 @@ export default definePlugin({
                         return origGetProfile(userId);
                     }
                 };
-                const origGetGuild = UPS.getGuildMemberProfile.bind(UPS);
-                UPS.getGuildMemberProfile = (userId: string, guildId: string) => {
-                    try {
-                        const profile = origGetGuild(userId, guildId);
-                        if (!userId) return profile;
-                        
-                        if (isEnabled && isMe(userId) && profile) {
-                            return this.hookUserProfile(profile);
-                        }
-                        
-                        if (Settings.seeAllCustomProfile) {
-                            fetchPublicProfileIfNeeded(userId);
-                            const cached = publicProfilesCache.get(userId);
-                            if (cached?.fetched && cached.data && profile) {
-                                return this.hookOtherUserProfile(profile, cached.data);
-                            }
-                        }
-                        
-                        return profile;
-                    } catch (e) {
-                        console.error("[CustomProfile] Error in getGuildMemberProfile hook:", e);
-                        return origGetGuild(userId, guildId);
-                    }
-                };
+                // NOTE: getGuildMemberProfile is intentionally NOT hooked.
+                // Discord uses guild member profiles to calculate permissions and
+                // guild ordering. Modifying premiumType/publicFlags there corrupts
+                // these calculations. getUserProfile (hooked above) is sufficient
+                // for profile popouts/modals.
                 UPS._cp_profile_hook = true;
             }
         } catch { }

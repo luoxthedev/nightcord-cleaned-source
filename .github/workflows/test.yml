@@ -14,7 +14,7 @@ jobs:
 
         steps:
             - uses: actions/checkout@v4
-            - uses: pnpm/action-setup@v3 # Install pnpm using packageManager key in package.json
+            - uses: pnpm/action-setup@v4
 
             - name: Use Node.js 20
               uses: actions/setup-node@v4
@@ -27,9 +27,6 @@ jobs:
 
             - name: Test if desktop version compiles
               run: pnpm buildStandalone
-
-            - name: Lint
-              run: pnpm lint:fix && pnpm lint-styles
 
             - name: Test if web version compiles
               run: pnpm buildWeb

@@ -29,7 +29,7 @@ Nightcord is a fork of [Equicord](https://github.com/Equicord/Equicord), which i
 ### Easy way — One-click installer
 
 1. Go to [Releases](https://github.com/luoxthedev/nightcord-cleaned-source/releases)
-2. Download the latest **`nightcord-install.ps1`** (or grab it from this repo)
+2. Download **`nightcord-install.bat`** and **`nightcord-install.ps1`** into the same folder
 3. Double-click **`nightcord-install.bat`**
 4. Wait for the progress bar to finish — Discord will be patched automatically
 5. Restart Discord — done!
@@ -47,7 +47,7 @@ Nettoyage...                 █████████████████
 ```
 
 * Finds your Discord installation (Stable / PTB / Canary)
-* Downloads the latest Nightcord build from GitHub
+* Uses the Nightcord build bundled in the release installer
 * Backs up the original `app.asar` (so you can always uninstall)
 * Injects Nightcord into Discord
 * Auto-closes after 5 seconds
@@ -55,6 +55,31 @@ Nettoyage...                 █████████████████
 ### Uninstall
 
 Double-click **`nightcord-uninstall.bat`** — it restores the original Discord in one click.
+
+---
+
+## Installation (Browser)
+
+Nightcord is also available as a browser extension for Chromium-based browsers (Chrome, Edge, Brave, etc.) and Firefox.
+
+### Chrome / Edge / Brave
+
+1. Go to [Releases](https://github.com/luoxthedev/nightcord-cleaned-source/releases)
+2. Download **`extension-chrome.zip`**
+3. Open `chrome://extensions` (or `edge://extensions`)
+4. Enable **Developer mode** (top right toggle)
+5. Click **Load unpacked**
+6. Select the **`extension-chrome.zip`** file — the extension loads automatically
+
+### Firefox
+
+1. Go to [Releases](https://github.com/luoxthedev/nightcord-cleaned-source/releases)
+2. Download **`extension-firefox.zip`**
+3. Open `about:debugging#/runtime/this-firefox`
+4. Click **Load Temporary Add-on…**
+5. Select the **`extension-firefox.zip`** file
+
+> **Note:** Firefox temporary add-ons are removed when the browser restarts. To keep it permanently, you can use a Firefox Developer Edition or set `xpinstall.signatures.required` to `false` in `about:config`.
 
 ---
 
@@ -96,10 +121,10 @@ pnpm uninject
 ## Releasing
 
 ```bash
-# Push a nightly (auto-creates "nightly" release on GitHub)
+# Create or update the "nightly" release through workflow_dispatch
 npm run release:nightly
 
-# Push a stable version (asks for version number, creates git tag)
+# Create or update a stable release through workflow_dispatch
 npm run release:stable
 ```
 

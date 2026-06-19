@@ -1,8 +1,11 @@
 name: Release Stable
 on:
-    push:
-        tags:
-            - "v*"
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: Stable release tag to create or update.
+                required: true
+                default: v2.0.0
 
 env:
     FORCE_COLOR: true
@@ -12,13 +15,13 @@ permissions:
 
 jobs:
     Release:
-        name: Build & Release ${{ github.ref_name }}
+        name: Build & Release ${{ inputs.tag }}
         runs-on: ubuntu-latest
 
         steps:
             - uses: actions/checkout@v4
 
-            - uses: pnpm/action-setup@v3
+            - uses: pnpm/action-setup@v4
 
             - name: Use Node.js 20
               uses: actions/setup-node@v4
@@ -42,12 +45,11 @@ jobs:
                   pnpm generateVencordPluginJson dist/vencordplugins.json
                   pnpm generateDevsList dist/devs.json
 
-            - name: Create nightcord-dist.zip
+            - name: Create installer payload
               run: |
                   mkdir -p package/dist/desktop
                   mkdir -p package/browser
 
-                  # Desktop files
                   cp dist/desktop/patcher.js package/dist/desktop/
                   cp dist/desktop/patcher.js.LEGAL.txt package/dist/desktop/
                   cp dist/desktop/renderer.js package/dist/desktop/
@@ -55,29 +57,54 @@ jobs:
                   cp dist/desktop/renderer.js.LEGAL.txt package/dist/desktop/
                   cp dist/nightcord/preload.js package/dist/desktop/preload.js
 
-                  # Nightcord entry files (used by injection)
                   cp nightcord-index.js package/
                   cp nightcord-preload.js package/
 
-                  # Browser extension
                   cp dist/browser/browser.js package/browser/
                   cp dist/browser/browser.css package/browser/
                   cp dist/browser/browser.js.LEGAL.txt package/browser/
                   cp dist/extension-chrome.zip package/browser/ 2>/dev/null || true
                   cp dist/extension-firefox.zip package/browser/ 2>/dev/null || true
 
-                  # Plugin lists
                   cp dist/plugins.json package/ 2>/dev/null || true
                   cp dist/equicordplugins.json package/ 2>/dev/null || true
                   cp dist/vencordplugins.json package/ 2>/dev/null || true
                   cp dist/devs.json package/ 2>/dev/null || true
 
                   cd package
-                  zip -r ../nightcord-dist.zip .
+                  zip -r ../nightcord-payload.zip .
+
+            - name: Embed payload in installer
+              run: |
+                  python3 - <<'PY'
+                  import base64
+                  import shutil
+                  import textwrap
+                  from pathlib import Path
+
+                  assets = Path("release-assets")
+                  assets.mkdir(exist_ok=True)
+
+                  payload = base64.b64encode(Path("nightcord-payload.zip").read_bytes()).decode()
+                  payload = "\n".join(textwrap.wrap(payload, 76))
+                  installer = Path("nightcord-install.ps1").read_text(encoding="utf-8")
+                  installer = installer.replace("__NIGHTCORD_PAYLOAD_BASE64__", payload)
+                  Path("release-assets/nightcord-install.ps1").write_text(installer, encoding="utf-8", newline="\r\n")
+
+                  for name in ("nightcord-install.bat", "nightcord-uninstall.bat", "nightcord-uninstall.ps1"):
+                      shutil.copyfile(name, assets / name)
+                  PY
 
             - name: Create GitHub Release
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
-                  TAG="${GITHUB_REF#refs/tags/}"
-                  gh release create "$TAG" --target main --title "Nightcord $TAG" --generate-notes nightcord-dist.zip
+                  TAG="${{ inputs.tag }}"
+                  gh release create "$TAG" --target "$GITHUB_SHA" --title "Nightcord $TAG" --generate-notes 2>/dev/null || true
+                  gh release upload "$TAG" --clobber \
+                    release-assets/nightcord-install.bat \
+                    release-assets/nightcord-install.ps1 \
+                    release-assets/nightcord-uninstall.bat \
+                    release-assets/nightcord-uninstall.ps1 \
+                    dist/extension-chrome.zip \
+                    dist/extension-firefox.zip

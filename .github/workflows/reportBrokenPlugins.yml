@@ -31,7 +31,7 @@ jobs:
               with:
                   ref: ${{ github.event_name == 'schedule' && 'main' || github.ref }}
 
-            - uses: pnpm/action-setup@v3 # Install pnpm using packageManager key in package.json
+            - uses: pnpm/action-setup@v4
 
             - name: Use Node.js 20
               uses: actions/setup-node@v4

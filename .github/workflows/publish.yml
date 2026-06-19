@@ -1,8 +1,6 @@
 name: Release Browser Extension
 on:
-    push:
-        branches:
-            - main
+    workflow_dispatch:
 
 env:
     FORCE_COLOR: true
@@ -60,7 +58,7 @@ jobs:
 
             - name: Setup PNPM
               if: steps.check.outputs.release == 'true'
-              uses: pnpm/action-setup@v3
+              uses: pnpm/action-setup@v4
 
             - name: Use Node.js 20
               if: steps.check.outputs.release == 'true'

@@ -60,7 +60,7 @@ function remove() {
 export default definePlugin({
     name: "TitlebarLink",
     enabledByDefault: true,
-    description: `Click on the central Discord title to open ${domain}`,
+    description: "Click on the central Discord title to open the site",
     authors: [{ name: "Nightcord", id: 0n }],
     required: true,
     patches: [],

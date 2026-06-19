@@ -3,7 +3,7 @@
 #
 #  Fait TOUT automatiquement :
 #  1. Trouve Discord (Stable / PTB / Canary)
-#  2. Telecharge nightcord-dist.zip depuis GitHub
+#  2. Charge le payload Nightcord depuis l'installateur publie
 #  3. Backup app.asar -> _app.asar
 #  4. Injecte Nightcord dans Discord
 #  5. Redemarre Discord
@@ -17,6 +17,10 @@ $ProgressPreference    = "SilentlyContinue"
 $Repo         = "luoxthedev/nightcord-cleaned-source"
 $InstallDir   = Join-Path $env:LOCALAPPDATA "Nightcord"
 $VersionFile  = Join-Path $InstallDir "version.txt"
+$PayloadAsset = "nightcord-install.ps1"
+$EmbeddedPayloadBase64 = @'
+__NIGHTCORD_PAYLOAD_BASE64__
+'@
 
 # --- Helpers ---
 
@@ -93,6 +97,32 @@ function Restart-Discord($Channel) {
     }
 }
 
+function Test-EmbeddedPayload($Payload) {
+    if ([string]::IsNullOrWhiteSpace($Payload)) { return $false }
+    return $Payload.Trim() -ne "__NIGHTCORD_PAYLOAD_BASE64__"
+}
+
+function Get-EmbeddedPayloadFromScript($ScriptPath) {
+    $script = Get-Content $ScriptPath -Raw
+    $match = [regex]::Match($script, "(?s)\`$EmbeddedPayloadBase64\s*=\s*@'\r?\n(?<payload>.*?)\r?\n'@")
+    if (-not $match.Success) { return $null }
+    return $match.Groups["payload"].Value
+}
+
+function Expand-NightcordPayload($Payload, $Destination) {
+    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+
+    foreach ($item in @("dist", "browser", "nightcord-index.js", "nightcord-preload.js", "plugins.json", "equicordplugins.json", "vencordplugins.json", "devs.json")) {
+        $path = Join-Path $Destination $item
+        if (Test-Path $path) { Remove-Item $path -Recurse -Force }
+    }
+
+    $zipPath = Join-Path $env:TEMP "nightcord-payload-$PID.zip"
+    [IO.File]::WriteAllBytes($zipPath, [Convert]::FromBase64String(($Payload -replace "\s", "")))
+    Expand-Archive -Path $zipPath -DestinationPath $Destination -Force
+    Remove-Item $zipPath -Force
+}
+
 # --- Demarrage ---
 Write-Banner
 
@@ -122,29 +152,32 @@ try {
         -Headers @{ "User-Agent" = "Nightcord-Installer/3.0"; "Accept" = "application/vnd.github.v3+json" }
 
     $version = $release.tag_name
-    $zipAsset = $release.assets | Where-Object { $_.name -eq "nightcord-dist.zip" } | Select-Object -First 1
+    $payload = $EmbeddedPayloadBase64
 
-    if (-not $zipAsset) {
-        Write-Fail "nightcord-dist.zip introuvable dans la release $version"
+    if (-not (Test-EmbeddedPayload $payload)) {
+        $installerAsset = $release.assets | Where-Object { $_.name -eq $PayloadAsset } | Select-Object -First 1
+        if (-not $installerAsset) {
+            Write-Fail "$PayloadAsset introuvable dans la release $version"
+        }
+
+        $latestInstaller = Join-Path $InstallDir "nightcord-install.latest.ps1"
+        Invoke-WebRequest -Uri $installerAsset.browser_download_url -OutFile $latestInstaller -UseBasicParsing `
+            -Headers @{ "User-Agent" = "Nightcord-Installer/3.0" }
+
+        $payload = Get-EmbeddedPayloadFromScript $latestInstaller
+        Remove-Item $latestInstaller -Force
+
+        if (-not (Test-EmbeddedPayload $payload)) {
+            Write-Fail "Payload Nightcord introuvable dans $PayloadAsset"
+        }
     }
 
     Write-Host "         Version : $version" -ForegroundColor DarkGray
-    Write-ProgressBar 35 "Telechargement..."
-
-    $zipPath = Join-Path $InstallDir "nightcord-dist.zip"
-    Invoke-WebRequest -Uri $zipAsset.browser_download_url -OutFile $zipPath -UseBasicParsing `
-        -Headers @{ "User-Agent" = "Nightcord-Installer/3.0" }
-
-    Write-ProgressBar 60 "Extraction..."
-
-    # Extraire directement dans $InstallDir (le zip contient dist/, browser/, etc.)
-    if (Test-Path (Join-Path $InstallDir "dist")) { Remove-Item (Join-Path $InstallDir "dist") -Recurse -Force }
-    if (Test-Path (Join-Path $InstallDir "browser")) { Remove-Item (Join-Path $InstallDir "browser") -Recurse -Force }
-    Expand-Archive -Path $zipPath -DestinationPath $InstallDir -Force
-    Remove-Item $zipPath -Force
+    Write-ProgressBar 45 "Extraction..."
+    Expand-NightcordPayload $payload $InstallDir
 
     Set-Content -Path $VersionFile -Value $version
-    Write-OK "Nightcord $version telecharge"
+    Write-OK "Nightcord $version prepare"
     Write-ProgressBar 65 "Fichiers prets"
 } catch {
     Write-Fail "Echec du telechargement.`n         Detail : $_"
@@ -189,6 +222,12 @@ New-Item -ItemType Directory -Force -Path $appDir | Out-Null
 # Copier dist/desktop/ vers app/dist/desktop/
 $distSrc = Join-Path $InstallDir "dist\desktop"
 $distDst = Join-Path $appDir "dist"
+foreach ($file in @("patcher.js", "renderer.js", "renderer.css", "preload.js")) {
+    $requiredFile = Join-Path $distSrc $file
+    if (-not (Test-Path $requiredFile)) {
+        Write-Fail "Fichier Nightcord manquant : dist\desktop\$file"
+    }
+}
 New-Item -ItemType Directory -Force -Path $distDst | Out-Null
 Copy-Item -Path $distSrc -Destination (Join-Path $distDst "desktop") -Recurse -Force
 

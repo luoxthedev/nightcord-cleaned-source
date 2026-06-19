@@ -352,7 +352,7 @@ const VoiceDictationButton: ChatBarButtonFactory = ({ isMainChat }) => {
 };
 
 // Modification ici pour contourner le bug d'esbuild avec le mot-clé default direct
-const pluginObj = definePlugin({
+export default definePlugin({
     name: "VoiceDictation",
     enabledByDefault: true,
     description: "Real-time voice dictation via Groq Whisper (free). API key shared with NightcordAI.",
@@ -365,4 +365,3 @@ const pluginObj = definePlugin({
     },
 });
 
-export default pluginObj;
